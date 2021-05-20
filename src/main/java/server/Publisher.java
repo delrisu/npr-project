@@ -24,12 +24,12 @@ public class Publisher implements Runnable {
     @Override
     public void run() {
 
-        synchronized (Communication.publisherMonitor) {
+        synchronized (ServerCommunication.publisherMonitor) {
             while (messagesToSend.size() == 0) {
-                Communication.publisherMonitor.wait();
+                ServerCommunication.publisherMonitor.wait();
             }
             messagesToSend.forEach(message -> socket.send(message));
-            Communication.publisherMonitor.notify();
+            ServerCommunication.publisherMonitor.notify();
         }
 
     }
