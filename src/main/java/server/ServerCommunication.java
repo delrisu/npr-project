@@ -10,32 +10,59 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.Executors;
 
 public class ServerCommunication implements Runnable {
 
     final static public Object publisherMonitor = new Object();
     final static public Object subscriberMonitor = new Object();
-    List<String> messagesToSend = new ArrayList<>();
-    List<String> receivedMessages = new ArrayList<>();
-    ZContext context = new ZContext();
+    private List<String> messagesToSend = new ArrayList<>();
+    private List<String> receivedMessages = new ArrayList<>();
+    private ZContext context = new ZContext();
 
-    String id;
-    Publisher publisher;
-    Subscriber subscriber;
+    private boolean hasToken = false;
+
+    private int id;
+    private Publisher publisher;
+    private Subscriber subscriber;
+
+    private int[] waiting;
+
+    String publisherPort;
+    String subscriberHost;
 
     Logger logger = LoggerFactory.getLogger(this.getClass());
 
     public ServerCommunication() throws IOException {
         InputStream inputStream = getClass().getClassLoader().getResourceAsStream("Hosts");
         assert inputStream != null;
-        List<String[]> hosts = new ArrayList<>();
+        List<String> hosts = new ArrayList<>();
+        List<String[]> hostsSplit = new ArrayList<>();
         BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
         while (reader.ready()) {
-            hosts.add(reader.readLine().split("\\|"));
+            hosts.add(reader.readLine());
         }
         logger.info("Hosts size: " + hosts.size());
-        hosts.forEach(host -> System.out.println(host[0] + " " + host[1]));
+        Collections.sort(hosts);
+        hosts.forEach(host -> hostsSplit.add(host.split("\\|")));
+
+        waiting = new int[hostsSplit.size()];
+        for (int i = 0; i < hostsSplit.size(); i++) {
+            if(hostsSplit.get(i)[1].equals("1")){
+                publisherPort = hostsSplit.get(i)[0].split(":")[1];
+                id = i;
+                if(i==0){
+                    hasToken = true;
+                    subscriberHost = hostsSplit.get(hostsSplit.size() - 1)[0];
+                } else{
+                    subscriberHost = hostsSplit.get(i - 1)[0];
+                }
+            }
+        }
+        subscriber = new Subscriber(subscriberHost, "A", context, receivedMessages);
+        publisher = new Publisher(publisherPort, context, messagesToSend);
 
     }
 
@@ -43,8 +70,21 @@ public class ServerCommunication implements Runnable {
     @Override
     public void run() {
         logger.info("Running!");
-        Subscriber subscriber = new Subscriber("127.0.0.1:55555", "A", context, receivedMessages);
         new Thread(subscriber).start();
+        new Thread(publisher).start();
+//        if(id == 1) {
+///*
+////////////////////////////////////////////////////////////////////////
+//                        INICJALIZACJA
+////////////////////////////////////////////////////////////////////////
+// */
+//            Executors.newSingleThreadExecutor().execute(new Runnable() {
+//                @Override
+//                public void run() {
+//
+//                }
+//            });
+//        }
         handleReceivedMessages();
     }
 
@@ -52,11 +92,18 @@ public class ServerCommunication implements Runnable {
         while (!Thread.currentThread().isInterrupted()) {
             synchronized (ServerCommunication.subscriberMonitor) {
                 while (receivedMessages.size() == 0) {
-                    logger.info("WAITING");
+//                    logger.info("Waiting");
                     ServerCommunication.subscriberMonitor.wait();
                 }
-                receivedMessages.forEach(System.out::println);
+                receivedMessages.forEach(message -> {
+                    synchronized (ServerCommunication.publisherMonitor) {
+                        messagesToSend.add(message);
+                        logger.info("Moved message: " + message);
+                        ServerCommunication.publisherMonitor.notify();
+                    }
+                });
                 receivedMessages.clear();
+                Thread.sleep(1);
                 ServerCommunication.subscriberMonitor.notify();
             }
         }

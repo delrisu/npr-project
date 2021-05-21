@@ -36,11 +36,10 @@ public class Subscriber implements Runnable {
         while (!Thread.currentThread().isInterrupted()){
             synchronized (ServerCommunication.subscriberMonitor){
                 receivedMessages.add(socket.recvStr());
-                logger.info(String.valueOf(receivedMessages.size()));
-                logger.info(receivedMessages.get(0));
+                logger.info("Received: " + receivedMessages.get(0));
                 ServerCommunication.subscriberMonitor.notify();
             }
-            Thread.sleep(0, 1);
+            Thread.sleep(1);
         }
     }
 }
