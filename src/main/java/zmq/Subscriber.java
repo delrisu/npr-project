@@ -1,4 +1,4 @@
-package server;
+package zmq;
 
 import lombok.Data;
 import lombok.SneakyThrows;
@@ -34,10 +34,10 @@ public class Subscriber implements Runnable {
     public void run() {
         logger.info("Running!");
         while (!Thread.currentThread().isInterrupted()){
-            synchronized (ServerCommunication.subscriberMonitor){
+            synchronized (receivedMessages){
                 receivedMessages.add(socket.recvStr());
                 logger.info("Received: " + receivedMessages.get(0));
-                ServerCommunication.subscriberMonitor.notify();
+                receivedMessages.notify();
             }
             Thread.sleep(1);
         }

@@ -1,4 +1,4 @@
-package server;
+package zmq;
 
 import lombok.Data;
 import lombok.SneakyThrows;
@@ -17,7 +17,7 @@ public class Publisher implements Runnable {
     private ZMQ.Socket socket;
     private List<String> messagesToSend;
 
-    Publisher(String port, ZContext context, List<String> messages) {
+    public Publisher(String port, ZContext context, List<String> messages) {
         socket = context.createSocket(SocketType.PUB);
         socket.bind("tcp://*:" + port);
         this.messagesToSend = messages;
@@ -28,17 +28,16 @@ public class Publisher implements Runnable {
     public void run() {
         logger.info("Running");
         while (!Thread.currentThread().isInterrupted()) {
-            synchronized (ServerCommunication.publisherMonitor) {
+            synchronized (messagesToSend) {
                 while (messagesToSend.size() == 0) {
-//                    logger.info("Waiting");
-                    ServerCommunication.publisherMonitor.wait();
+                    messagesToSend.wait();
                 }
                 messagesToSend.forEach(message -> {
                     socket.send(message);
                     logger.info("Sent: " + message);
                 });
                 messagesToSend.clear();
-                ServerCommunication.publisherMonitor.notify();
+                messagesToSend.notify();
             }
         }
     }
