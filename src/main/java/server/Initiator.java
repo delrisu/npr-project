@@ -10,8 +10,8 @@ import java.util.List;
 
 public class Initiator implements Runnable{
 
-    private MutableBoolean initialized;
-    private List<String> messagesToSend;
+    private final MutableBoolean initialized;
+    private final List<String> messagesToSend;
     Logger logger = LoggerFactory.getLogger(this.getClass());
 
     public Initiator(MutableBoolean initialized, List<String> messagesToSend) {
@@ -22,13 +22,13 @@ public class Initiator implements Runnable{
     @SneakyThrows
     @Override
     public void run() {
-        while(this.initialized.getValue() == false){
+        while(!this.initialized.getValue()){
             synchronized (messagesToSend) {
                 messagesToSend.add(Constants.INITIALIZE_MESSAGE);
                 logger.info("LEADER Sent INIT");
                 messagesToSend.notify();
             }
-            Thread.sleep(100);
+            Thread.sleep(1000);
         }
 
     }

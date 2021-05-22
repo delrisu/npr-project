@@ -16,23 +16,21 @@ public class Subscriber implements Runnable {
     private String host;
     private String topic;
     private ZMQ.Socket socket;
-    private List<String> receivedMessages;
+    private final List<String> receivedMessages;
     Logger logger = LoggerFactory.getLogger(this.getClass());
 
-    public Subscriber(String host, String topic, ZContext context, List<String> receivedMessages) {
+    public Subscriber(String host, ZContext context, List<String> receivedMessages) {
         this.host = host;
-        this.topic = topic;
         this.socket = context.createSocket(SocketType.SUB);
-        logger.info(host);
         socket.connect("tcp://" + host);
-        socket.subscribe(topic);
+        socket.subscribe(ZMQ.SUBSCRIPTION_ALL);
         this.receivedMessages = receivedMessages;
+        logger.info("Created subscrber to host: " + host);
     }
 
     @SneakyThrows
     @Override
     public void run() {
-        logger.info("Running!");
         while (!Thread.currentThread().isInterrupted()){
             synchronized (receivedMessages){
                 receivedMessages.add(socket.recvStr());

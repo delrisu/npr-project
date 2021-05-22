@@ -15,18 +15,18 @@ public class Publisher implements Runnable {
 
     Logger logger = LoggerFactory.getLogger(this.getClass());
     private ZMQ.Socket socket;
-    private List<String> messagesToSend;
+    private final List<String> messagesToSend;
 
     public Publisher(String port, ZContext context, List<String> messages) {
         socket = context.createSocket(SocketType.PUB);
         socket.bind("tcp://*:" + port);
+        logger.info("Created publisher with port: " + port);
         this.messagesToSend = messages;
     }
 
     @SneakyThrows
     @Override
     public void run() {
-        logger.info("Running");
         while (!Thread.currentThread().isInterrupted()) {
             synchronized (messagesToSend) {
                 while (messagesToSend.size() == 0) {

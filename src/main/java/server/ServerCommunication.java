@@ -19,51 +19,64 @@ import java.util.List;
 
 public class ServerCommunication implements Runnable {
 
-    private final List<String> messagesToSend = new ArrayList<>();
-    private final List<String> receivedMessages = new ArrayList<>();
+    private final List<String> messagesToServers = new ArrayList<>();
+    private final List<String> messagesFromServers = new ArrayList<>();
+    private final List<String> messagesFromClients = new ArrayList<>();
+    private final List<String> messagesToClients = new ArrayList<>();
+
     private final ZContext context = new ZContext();
-    private final Publisher publisher;
-    private final Subscriber subscriber;
-    String publisherPort;
+
+    private final Publisher serverPublisher;
+    private final Publisher clientPublisher;
+    private final Subscriber serverSubscriber;
+
+    private final MutableBoolean initialized = new MutableBoolean(false);
+
+    String serverPublisherPort;
+    String clientPublisherPort;
     String subscriberHost;
+
     Logger logger = LoggerFactory.getLogger(this.getClass());
+
     private boolean hasToken = false;
     private boolean notified = false;
-    private MutableBoolean initialized = new MutableBoolean(false);
     private int id;
 
     public ServerCommunication() throws IOException {
         InputStream inputStream = getClass().getClassLoader().getResourceAsStream("Hosts");
         assert inputStream != null;
-        List<String> hosts = new ArrayList<>();
+        List<String> lines = new ArrayList<>();
         List<String[]> hostsSplit = new ArrayList<>();
         BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
         while (reader.ready()) {
-            hosts.add(reader.readLine());
+            lines.add(reader.readLine());
         }
-        logger.info("Hosts size: " + hosts.size());
-        Collections.sort(hosts);
-        hosts.forEach(host -> hostsSplit.add(host.split("\\|")));
+        logger.info("Hosts size: " + lines.size());
+        Collections.sort(lines);
+        lines.forEach(host -> hostsSplit.add(host.split("\\|")));
 
         for (int i = 0; i < hostsSplit.size(); i++) {
             if (hostsSplit.get(i)[1].equals("1")) {
-                publisherPort = hostsSplit.get(i)[0].split(":")[1];
+                this.serverPublisherPort = hostsSplit.get(i)[0].split(":")[1];
                 id = i;
                 if (i == 0) {
-                    hasToken = true;
-                    subscriberHost = hostsSplit.get(hostsSplit.size() - 1)[0];
+                    this.hasToken = true;
+                    this.subscriberHost = hostsSplit.get(hostsSplit.size() - 1)[0];
                 } else {
-                    subscriberHost = hostsSplit.get(i - 1)[0];
+                    this.subscriberHost = hostsSplit.get(i - 1)[0];
                 }
+                this.clientPublisherPort = hostsSplit.get(i)[2];
             }
         }
-        subscriber = new Subscriber(subscriberHost, "A", context, receivedMessages);
-        publisher = new Publisher(publisherPort, context, messagesToSend);
+        this.serverSubscriber = new Subscriber(subscriberHost, context, messagesFromServers);
+        this.serverPublisher = new Publisher(serverPublisherPort, context, messagesToServers);
+        this.clientPublisher = new Publisher(clientPublisherPort, context, messagesToClients);
     }
 
-    public ServerCommunication(String sub_host, String port, int id) {
-        subscriber = new Subscriber(sub_host, "A", context, receivedMessages);
-        publisher = new Publisher(port, context, messagesToSend);
+    public ServerCommunication(String sub_host, String port, String portC, int id) {
+        this.serverSubscriber = new Subscriber(sub_host, context, messagesFromServers);
+        this.serverPublisher = new Publisher(port, context, messagesToServers);
+        this.clientPublisher = new Publisher(portC, context, messagesToClients);
         this.id = id;
     }
 
@@ -71,47 +84,51 @@ public class ServerCommunication implements Runnable {
     @Override
     public void run() {
         logger.info("Running!");
-        new Thread(subscriber).start();
-        new Thread(publisher).start();
+        new Thread(serverSubscriber).start();
+        new Thread(serverPublisher).start();
 
 
         if (this.id == 0) {
-            new Thread(new Initiator(this.initialized, this.messagesToSend)).start();
+            new Thread(new Initiator(this.initialized, this.messagesToServers)).start();
         }
-        while (!Thread.currentThread().isInterrupted()) {
-            handleReceivedMessages();
-        }
+        handleReceivedMessages();
+
     }
 
     private void handleReceivedMessages() throws InterruptedException {
-        synchronized (receivedMessages) {
-            while (receivedMessages.size() == 0) {
-                receivedMessages.wait();
-            }
-            receivedMessages.forEach(message -> {
-                if (message.equals(Constants.INITIALIZE_MESSAGE)) {
-                    this.initialized.setTrue();
-                    logger.info("Received INIT message");
-                    if (this.id != 0) {
-                        addToMessagesToSend(message);
-                    } else {
-                        logger.info("Whole circle initialized");
-                    }
-                } else {
-                    addToMessagesToSend(message);
+        while (!Thread.currentThread().isInterrupted()) {
+            synchronized (messagesFromServers) {
+                while (messagesFromServers.size() == 0) {
+                    messagesFromServers.wait();
                 }
-            });
-            receivedMessages.clear();
-            Thread.sleep(1);
-            receivedMessages.notify();
+                messagesFromServers.forEach(message -> {
+                    if (message.equals(Constants.INITIALIZE_MESSAGE)) {
+                        this.initialized.setTrue();
+                        logger.info("Received INIT message");
+                        if (this.id != 0) {
+                            addToMessagesToSend(message);
+                        } else {
+                            logger.info("Whole circle initialized");
+                        }
+                    } else {
+                        addToMessagesToSend(message);
+                    }
+                });
+                messagesFromServers.clear();
+                Thread.sleep(1);
+                messagesFromServers.notify();
+            }
+            synchronized (messagesFromClients) {
+
+            }
         }
     }
 
     private void addToMessagesToSend(String message) {
-        synchronized (messagesToSend) {
-            messagesToSend.add(message);
+        synchronized (messagesToServers) {
+            messagesToServers.add(message);
             logger.info(id + " Moved message: " + message);
-            messagesToSend.notify();
+            messagesToServers.notify();
         }
     }
 }
