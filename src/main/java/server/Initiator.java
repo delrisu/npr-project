@@ -8,7 +8,7 @@ import utils.Constants;
 
 import java.util.List;
 
-public class Initiator implements Runnable{
+public class Initiator implements Runnable {
 
     private final MutableBoolean initialized;
     private final List<String> messagesToSend;
@@ -22,7 +22,7 @@ public class Initiator implements Runnable{
     @SneakyThrows
     @Override
     public void run() {
-        while(!this.initialized.getValue()){
+        while (!this.initialized.getValue()) {
             synchronized (messagesToSend) {
                 messagesToSend.add(Constants.INITIALIZE_MESSAGE);
                 logger.info("LEADER Sent INIT");

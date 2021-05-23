@@ -13,9 +13,9 @@ import java.util.List;
 @Data
 public class Publisher implements Runnable {
 
+    private final List<String> messagesToSend;
     Logger logger = LoggerFactory.getLogger(this.getClass());
     private ZMQ.Socket socket;
-    private final List<String> messagesToSend;
 
     public Publisher(String port, ZContext context, List<String> messages) {
         socket = context.createSocket(SocketType.PUB);

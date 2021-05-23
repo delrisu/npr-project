@@ -13,11 +13,11 @@ import java.util.List;
 @Data
 public class Subscriber implements Runnable {
 
+    private final List<String> receivedMessages;
+    Logger logger = LoggerFactory.getLogger(this.getClass());
     private String host;
     private String topic;
     private ZMQ.Socket socket;
-    private final List<String> receivedMessages;
-    Logger logger = LoggerFactory.getLogger(this.getClass());
 
     public Subscriber(String host, ZContext context, List<String> receivedMessages) {
         this.host = host;
@@ -31,13 +31,13 @@ public class Subscriber implements Runnable {
     @SneakyThrows
     @Override
     public void run() {
-        while (!Thread.currentThread().isInterrupted()){
-            synchronized (receivedMessages){
+        while (!Thread.currentThread().isInterrupted()) {
+            synchronized (receivedMessages) {
                 receivedMessages.add(socket.recvStr());
                 logger.info("Received: " + receivedMessages.get(0));
                 receivedMessages.notify();
             }
-            Thread.sleep(1);
+            Thread.sleep(5);
         }
     }
 }
