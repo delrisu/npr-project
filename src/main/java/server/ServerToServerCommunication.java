@@ -9,6 +9,7 @@ import utils.Constants;
 import zmq.Publisher;
 import zmq.Subscriber;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class ServerToServerCommunication implements Runnable {
@@ -26,6 +27,8 @@ public class ServerToServerCommunication implements Runnable {
     private final MutableBoolean initialized;
     private final MutableBoolean hasToken;
     private final int id;
+
+    private List<String> temp;
 
     Logger logger = LoggerFactory.getLogger(this.getClass());
 
@@ -64,7 +67,11 @@ public class ServerToServerCommunication implements Runnable {
                 while (receivedMessagesServer.size() == 0) {
                     receivedMessagesServer.wait();
                 }
-                receivedMessagesServer.forEach(message -> {
+                temp = new ArrayList<>(receivedMessagesServer);
+                receivedMessagesServer.clear();
+                receivedMessagesServer.notify();
+            }
+            temp.forEach(message -> {
                     try {
                         switch (message) {
                             case Constants.INITIALIZE_MESSAGE:
@@ -74,10 +81,11 @@ public class ServerToServerCommunication implements Runnable {
                                     addToList(message, this.messagesToSendServer);
                                 } else {
                                     logger.info("Whole circle initialized");
+                                    addToList(Constants.TOKEN, this.receivedMessagesServer);
                                 }
                                 break;
                             case Constants.TOKEN:
-                                logger.info("GOT TOKEN");
+                                logger.info("GOT TOKEN " + this.id);
                                 synchronized (this.hasToken) {
                                     this.hasToken.setTrue();
                                     this.hasToken.notify();
@@ -86,7 +94,6 @@ public class ServerToServerCommunication implements Runnable {
                                 addToList(Constants.TOKEN, this.receivedMessagesClient);
                                 //System.out.println(this.receivedMessagesClient.size());
                                 //addToList(Constants.TOKEN, this.messagesToSendServer);
-                                logger.info("GOT TOKEN @");
                                 break;
                             case Constants.UNLOCK:
                                 synchronized (this.hasToken) {
@@ -106,11 +113,8 @@ public class ServerToServerCommunication implements Runnable {
                         e.printStackTrace();
                     }
                 });
-                receivedMessagesServer.clear();
-                Thread.sleep(1);
-                receivedMessagesServer.notify();
+
             }
-        }
     }
 
     private void handleMessage(String message) throws InterruptedException {

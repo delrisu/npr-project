@@ -69,13 +69,15 @@ public class Server {
                   String clientPublisherPort, int id) {
         this.serverPublisherPort = serverPublisherPort;
         this.serverSubscriberHost = serverSubscriberHost;
+        this.clientPublisherPort = clientPublisherPort;
+        this.clientSubscriberPort = clientSubscriberPort;
         this.id = id;
 
-        new Thread(new ServerToServerCommunication(messagesToSendClient, receivedMessagesClient,
+        new Thread(new ServerToServerCommunication(this.messagesToSendClient, this.receivedMessagesClient,
                 this.serverSubscriberHost, this.serverPublisherPort, this.id,
-                this.hasToken, this.initialized, messagesToSendServer, receivedMessagesServer)).start();
-        new Thread(new ServerToClientCommunication(messagesToSendClient, messagesToSendServer, receivedMessagesClient,
-                receivedMessagesServer, this.id, clientSubscriberPort, clientPublisherPort)).start();
+                this.hasToken, this.initialized, this.messagesToSendServer, this.receivedMessagesServer)).start();
+        new Thread(new ServerToClientCommunication(this.messagesToSendClient, this.messagesToSendServer, this.receivedMessagesClient,
+                this.receivedMessagesServer, this.id, this.clientSubscriberPort, this.clientPublisherPort)).start();
     }
 
     private void addToList(String message, List<String> list) throws InterruptedException {

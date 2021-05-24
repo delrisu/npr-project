@@ -37,8 +37,9 @@ public class Subscriber implements Runnable {
     @Override
     public void run() {
         while (!Thread.currentThread().isInterrupted()) {
+            String message = socket.recvStr();
             synchronized (receivedMessages) {
-                receivedMessages.add(socket.recvStr());
+                receivedMessages.add(message);
                 logger.info("Received: " + receivedMessages.get(0));
                 receivedMessages.notify();
             }
