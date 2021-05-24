@@ -19,13 +19,18 @@ public class Subscriber implements Runnable {
     private String topic;
     private ZMQ.Socket socket;
 
-    public Subscriber(String host, ZContext context, List<String> receivedMessages) {
-        this.host = host;
+    public Subscriber(String argument, ZContext context, List<String> receivedMessages, boolean connect) {
+        this.host = argument;
         this.socket = context.createSocket(SocketType.SUB);
-        socket.connect("tcp://" + host);
+        if(connect) {
+            socket.connect("tcp://" + argument);
+            logger.info("Created subscrber to host: " + argument);
+        } else {
+            socket.bind("tcp://*:" + argument);
+            logger.info("Created subscrber to port: " + argument);
+        }
         socket.subscribe(ZMQ.SUBSCRIPTION_ALL);
         this.receivedMessages = receivedMessages;
-        logger.info("Created subscrber to host: " + host);
     }
 
     @SneakyThrows

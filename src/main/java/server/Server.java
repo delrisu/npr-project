@@ -3,6 +3,7 @@ package server;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import utils.Constants;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -17,22 +18,22 @@ public class Server {
     private final MutableBoolean hasToken = new MutableBoolean(false);
     private final MutableBoolean initialized = new MutableBoolean(false);
 
-    private final List<String> messagesToServers = new ArrayList<>();
-    private final List<String> messagesFromServers = new ArrayList<>();
+    private final List<String> messagesToSendServer = new ArrayList<>();
+    private final List<String> receivedMessagesServer = new ArrayList<>();
 
-    private final List<String> messagesFromClients = new ArrayList<>();
-    private final List<String> messagesToClients = new ArrayList<>();
+    private final List<String> messagesToSendClient = new ArrayList<>();
+    private final List<String> receivedMessagesClient = new ArrayList<>();
     private final List<String> waitingClients = new ArrayList<>();
 
-    String subscriberHost;
+    String serverSubscriberHost;
     String serverPublisherPort;
-    String clientPusherPort; //?
-    String clientPublisherPort; //?
+    String clientSubscriberPort;
+    String clientPublisherPort;
     int id;
 
     Logger logger = LoggerFactory.getLogger(this.getClass());
 
-    public Server() throws IOException {
+    public Server() throws IOException, InterruptedException {
         InputStream inputStream = getClass().getClassLoader().getResourceAsStream("Hosts");
         assert inputStream != null;
         List<String> lines = new ArrayList<>();
@@ -50,29 +51,39 @@ public class Server {
                 this.serverPublisherPort = hostsSplit.get(i)[0].split(":")[1];
                 id = i;
                 if (i == 0) {
-                    synchronized (this.hasToken) {
-                        this.hasToken.setTrue();
-                        this.hasToken.notify();
-                    }
-                    this.subscriberHost = hostsSplit.get(hostsSplit.size() - 1)[0];
+                    this.serverSubscriberHost = hostsSplit.get(hostsSplit.size() - 1)[0];
+                    addToList(Constants.TOKEN, this.receivedMessagesServer);
                 } else {
-                    this.subscriberHost = hostsSplit.get(i - 1)[0];
+                    this.serverSubscriberHost = hostsSplit.get(i - 1)[0];
                 }
-                this.clientPusherPort = hostsSplit.get(i)[2];
+                //this.clientPusherPort = hostsSplit.get(i)[2];
             }
         }
 
-        new Thread(new ServerToServerCommunication(this.subscriberHost, this.serverPublisherPort, this.id,
-                this.hasToken, this.initialized, messagesToServers, messagesFromServers)).start();
+        new Thread(new ServerToServerCommunication(messagesToSendClient, receivedMessagesClient,
+                this.serverSubscriberHost, this.serverPublisherPort, this.id,
+                this.hasToken, this.initialized, messagesToSendServer, receivedMessagesServer)).start();
     }
 
-    public Server(String subscriberHost, String serverPublisherPort, String clientPusherPort, int id) {
+    public Server(String serverSubscriberHost, String serverPublisherPort, String clientSubscriberPort,
+                  String clientPublisherPort, int id) {
         this.serverPublisherPort = serverPublisherPort;
-        this.clientPusherPort = clientPusherPort;
-        this.subscriberHost = subscriberHost;
+        this.serverSubscriberHost = serverSubscriberHost;
         this.id = id;
 
-        new Thread(new ServerToServerCommunication(this.subscriberHost, this.serverPublisherPort, this.id,
-                this.hasToken, this.initialized, messagesToServers, messagesFromServers)).start();
+        new Thread(new ServerToServerCommunication(messagesToSendClient, receivedMessagesClient,
+                this.serverSubscriberHost, this.serverPublisherPort, this.id,
+                this.hasToken, this.initialized, messagesToSendServer, receivedMessagesServer)).start();
+        new Thread(new ServerToClientCommunication(messagesToSendClient, messagesToSendServer, receivedMessagesClient,
+                receivedMessagesServer, this.id, clientSubscriberPort, clientPublisherPort)).start();
+    }
+
+    private void addToList(String message, List<String> list) throws InterruptedException {
+        synchronized (list) {
+            Thread.sleep(100);
+            list.add(message);
+            logger.info(id + " Moved message: " + message);
+            list.notify();
+        }
     }
 }

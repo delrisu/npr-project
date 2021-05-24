@@ -17,10 +17,15 @@ public class Publisher implements Runnable {
     Logger logger = LoggerFactory.getLogger(this.getClass());
     private ZMQ.Socket socket;
 
-    public Publisher(String port, ZContext context, List<String> messages) {
+    public Publisher(String argument, ZContext context, List<String> messages, boolean bind) {
         socket = context.createSocket(SocketType.PUB);
-        socket.bind("tcp://*:" + port);
-        logger.info("Created publisher with port: " + port);
+        if(bind) {
+            socket.bind("tcp://*:" + argument);
+            logger.info("Created publisher with port: " + argument);
+        } else {
+            socket.connect("tcp://" + argument);
+            logger.info("Created publisher with host: " + argument);
+        }
         this.messagesToSend = messages;
     }
 
