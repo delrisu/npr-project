@@ -7,12 +7,7 @@ import lombok.Setter;
 
 @Data
 @AllArgsConstructor
-
 public class TestObject {
-    @Getter
-    @Setter
-    private final int x;
-    @Getter
-    @Setter
-    private final String y;
+    private int x;
+    private String y;
 }

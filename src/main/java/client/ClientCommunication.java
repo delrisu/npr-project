@@ -67,8 +67,9 @@ public class ClientCommunication implements Runnable {
                     }
                     break;
                 case Constants.UNLOCK:
-                    System.out.println(splitMessage[1]);
-                    monitor.setObject(new Gson().fromJson(splitMessage[1], monitor.getObject().getClass()));
+                    if(!splitMessage[1].equals("X")) {
+                        monitor.setObject(new Gson().fromJson(splitMessage[1], monitor.getObject().getClass()));
+                    }
                     synchronized (lockMonitor){
                         lockMonitor.notify();
                     }

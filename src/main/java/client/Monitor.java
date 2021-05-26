@@ -59,7 +59,7 @@ public class Monitor {
         }
     }
 
-    public void _lock() {
+    public Object _lock() {
         try {
             addToList(Constants.LOCK, this.toSend);
         } catch (InterruptedException e) {
@@ -72,14 +72,16 @@ public class Monitor {
                 e.printStackTrace();
             }
         }
+        return this.object;
     }
 
-    public void _unlock() {
+    public Object _unlock() {
         try {
             addToList(Constants.UNLOCK + "|" + new Gson().toJson(object), this.toSend);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
+        return this.object;
     }
 
     private void addToList(String message, List<String> list) throws InterruptedException {
