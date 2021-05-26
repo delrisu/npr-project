@@ -26,15 +26,15 @@ public class ServerToServerCommunication implements Runnable {
 
     private final MutableBoolean initialized;
     private final MutableBoolean hasToken;
+    private final MutableBoolean tokenInit;
     private final int id;
-
-    private List<String> temp;
-
     Logger logger = LoggerFactory.getLogger(this.getClass());
+    private List<String> temp;
+    private String type;
 
     public ServerToServerCommunication(List<String> messagesToSendClient, List<String> receivedMessagesClient, String sub_host, String port, int id,
                                        MutableBoolean hasToken, MutableBoolean initialized,
-                                       List<String> messagesToSendToServers, List<String> receivedMessagesServer) {
+                                       List<String> messagesToSendToServers, List<String> receivedMessagesServer, String type, MutableBoolean tokenInit) {
         this.messagesToSendClient = messagesToSendClient;
         this.receivedMessagesClient = receivedMessagesClient;
         this.messagesToSendServer = messagesToSendToServers;
@@ -44,6 +44,8 @@ public class ServerToServerCommunication implements Runnable {
         this.id = id;
         this.hasToken = hasToken;
         this.initialized = initialized;
+        this.type = type;
+        this.tokenInit = tokenInit;
     }
 
     @SneakyThrows
@@ -72,65 +74,76 @@ public class ServerToServerCommunication implements Runnable {
                 receivedMessagesServer.notify();
             }
             temp.forEach(message -> {
-                    try {
-                        switch (message) {
-                            case Constants.INITIALIZE_MESSAGE:
-                                this.initialized.setTrue();
-                                logger.info("Received INIT message");
-                                if (this.id != 0) {
-                                    addToList(message, this.messagesToSendServer);
-                                } else {
-                                    logger.info("Whole circle initialized");
-                                    addToList(Constants.TOKEN, this.receivedMessagesServer);
-                                }
-                                break;
-                            case Constants.TOKEN:
-                                logger.info("GOT TOKEN " + this.id);
-                                synchronized (this.hasToken) {
-                                    this.hasToken.setTrue();
-                                    this.hasToken.notify();
-                                }
-                                logger.info("SENDING TOKEN TO SECOND PART");
-                                addToList(Constants.TOKEN, this.receivedMessagesClient);
-                                //System.out.println(this.receivedMessagesClient.size());
-                                //addToList(Constants.TOKEN, this.messagesToSendServer);
-                                break;
-                            case Constants.UNLOCK:
-                                synchronized (this.hasToken) {
-                                    this.hasToken.setFalse();
-                                    this.hasToken.notify();
-                                }
-                                addToList(Constants.TOKEN, this.messagesToSendServer);
-                            case Constants.NOTIFY:
-                                addToList(Constants.S_NOTIFY, this.receivedMessagesClient);
-                                break;
-                            default:
-                                handleMessage(message);
-                                break;
-                        }
-
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
+                logger.info(this.id + " " + this.type + " " + message);
+                String[] splitMessage = message.split("\\|");
+                try {
+                    switch (splitMessage[0]) {
+                        case Constants.INITIALIZE_MESSAGE:
+                            this.initialized.setTrue();
+                            logger.info("Received INIT message");
+                            if (this.id != 0) {
+                                addToList(message, this.messagesToSendServer);
+                            } else {
+                                logger.info("Whole circle initialized");
+                                addToList(Constants.WHOLE_CIRCLE, this.messagesToSendServer);
+                            }
+                            break;
+                        case Constants.WHOLE_CIRCLE:
+                            if (this.id != 0) {
+                                addToList(message, this.messagesToSendServer);
+                            }
+                            if (this.tokenInit.getValue()) {
+                                addToList(Constants.TOKEN + "|" + this.type + "|X", this.receivedMessagesServer);
+                            }
+                            break;
+                        default:
+                            handleMessage(message);
+                            break;
                     }
-                });
 
-            }
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            });
+
+        }
     }
 
-    private void handleMessage(String message) throws InterruptedException {
+    private void handleMessage(String message) {
         String[] splitMessage = message.split("\\|");
-        if (!(splitMessage[1] == String.valueOf(this.id))) {
-            if (splitMessage[0].equals(String.valueOf(this.id))) {
-                logger.info(message);
-            } else if (splitMessage[0].equals("*")) {
-                if (splitMessage[2].equals(Constants.NOTIFY_ALL)) {
-                    addToList(Constants.S_NOTIFY_ALL, receivedMessagesClient);
+        try {
+            if (splitMessage[1].equals(this.type)) {
+                switch (splitMessage[0]) {
+                    case Constants.TOKEN:
+                        logger.info(this.id + " Received correct token!");
+                        synchronized (this.hasToken) {
+                            this.hasToken.setTrue();
+                            this.hasToken.notify();
+                        }
+                        addToList(Constants.TOKEN + "|" + this.type + "|"+ splitMessage[2], this.receivedMessagesClient);
+                        break;
+                    case Constants.UNLOCK:
+                        synchronized (this.hasToken) {
+                            this.hasToken.setFalse();
+                            this.hasToken.notify();
+                        }
+                        addToList(Constants.TOKEN + "|" + this.type + "|" + splitMessage[2], this.messagesToSendServer);
+                        break;
+                    case Constants.NOTIFY:
+                        addToList(Constants.S_NOTIFY, this.receivedMessagesClient);
+                        break;
+                    case Constants.NOTIFY_ALL:
+                        if(!splitMessage[2].equals(String.valueOf(this.id))) {
+                            addToList(Constants.S_NOTIFY_ALL, this.receivedMessagesClient);
+                            addToList(message, this.messagesToSendServer);
+                        }
+                        break;
                 }
             } else {
                 addToList(message, this.messagesToSendServer);
             }
-        } else {
-            logger.info(message);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
         }
     }
 

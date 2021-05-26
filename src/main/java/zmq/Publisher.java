@@ -45,5 +45,6 @@ public class Publisher implements Runnable {
                 messagesToSend.notify();
             }
         }
+        this.socket.close();
     }
 }

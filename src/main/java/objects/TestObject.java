@@ -1,11 +1,18 @@
 package objects;
 
-public class TestObject {
-    private final int x;
-    private final String y;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 
-    public TestObject(int x, String y) {
-        this.x = x;
-        this.y = y;
-    }
+@Data
+@AllArgsConstructor
+
+public class TestObject {
+    @Getter
+    @Setter
+    private final int x;
+    @Getter
+    @Setter
+    private final String y;
 }

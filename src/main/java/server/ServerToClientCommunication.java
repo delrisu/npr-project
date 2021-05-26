@@ -32,13 +32,16 @@ public class ServerToClientCommunication implements Runnable {
 
     private List<String> temp;
 
+    private String type;
+
     public ServerToClientCommunication(List<String> messagesToSendClient, List<String> messagesToSendServer, List<String> receivedMessagesClient,
-                                       List<String> receivedMessagesServer, int id, String clientSubscriberPort, String clientPublisherPort) {
+                                       List<String> receivedMessagesServer, int id, String clientSubscriberPort, String clientPublisherPort, String type) {
         this.messagesToSendClient = messagesToSendClient;
         this.messagesToSendServer = messagesToSendServer;
         this.receivedMessagesClient = receivedMessagesClient;
         this.receivedMessagesServer = receivedMessagesServer;
         this.id = id;
+        this.type = type;
         publisher = new Publisher(clientPublisherPort, context, messagesToSendClient, true);
         subscriber = new Subscriber(clientSubscriberPort, context, receivedMessagesClient, false);
 
@@ -56,19 +59,18 @@ public class ServerToClientCommunication implements Runnable {
     private void handleMessages() throws InterruptedException {
         while (!Thread.currentThread().isInterrupted()) {
             synchronized (this.receivedMessagesClient) {
-                logger.info("LOCK");
                 while (this.receivedMessagesClient.size() == 0) {
                     this.receivedMessagesClient.wait();
                 }
                 temp = new ArrayList<>(receivedMessagesClient);
                 this.receivedMessagesClient.clear();
                 this.receivedMessagesClient.notify();
-                logger.info("UNLOCK");
             }
             this.temp.forEach(message -> {
                 logger.info(message);
+                String[] splitMessage = message.split("\\|");
                 try {
-                    switch (message) {
+                    switch (splitMessage[0]) {
                         case Constants.NOTIFY: //NOTIFY from client to server
                             addToList(Constants.NOTIFY, this.messagesToSendServer);
                             break;
@@ -76,38 +78,40 @@ public class ServerToClientCommunication implements Runnable {
                             if (waiting) {
                                 waiting = false;
                                 locked = true;
-                                //addToList(Constants.NOTIFY, this.messagesToSendClient);
+                                addToList(Constants.NOTIFY, this.messagesToSendClient);
                             } else {
                                 addToList(Constants.NOTIFY, this.messagesToSendServer);
                             }
                             break;
                         case Constants.NOTIFY_ALL:
-                            addToList("*|" + this.id + "|"
-                                    + Constants.NOTIFY_ALL, this.messagesToSendServer);
+                            addToList(Constants.NOTIFY_ALL+"|"+this.type+"|"+this.id, this.messagesToSendServer);
+                            break;
                         case Constants.S_NOTIFY_ALL:
                             if (waiting) {
                                 waiting = false;
                                 locked = true;
-                                //addToList(Constants.NOTIFY, this.messagesToSendClient);
                             }
+                            break;
                         case Constants.LOCK:
                             this.locked = true;
                             break;
                         case Constants.UNLOCK:
                             this.locked = false;
-                            addToList(Constants.UNLOCK, this.receivedMessagesServer);
+                            addToList(Constants.UNLOCK + "|" + this.type + "|" + splitMessage[1], this.receivedMessagesServer);
                             break;
                         case Constants.WAIT:
                             this.waiting = true;
                             break;
                         case Constants.TOKEN:
-                            logger.info("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
                             if (locked) {
-                                addToList(Constants.UNLOCK, messagesToSendClient);
+                                addToList(Constants.UNLOCK + "|" + splitMessage[2], messagesToSendClient);
                             } else {
-                                addToList(Constants.UNLOCK, receivedMessagesServer);
+                                addToList(Constants.UNLOCK + "|" + this.type + "|" + splitMessage[2], receivedMessagesServer);
                             }
                             break;
+                        default:
+                            break;
+
                     }
                 } catch (InterruptedException e) {
                     e.printStackTrace();

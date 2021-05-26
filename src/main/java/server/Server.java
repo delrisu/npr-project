@@ -17,19 +17,23 @@ public class Server {
 
     private final MutableBoolean hasToken = new MutableBoolean(false);
     private final MutableBoolean initialized = new MutableBoolean(false);
+    private final MutableBoolean tokenInit = new MutableBoolean(false);
 
     private final List<String> messagesToSendServer = new ArrayList<>();
     private final List<String> receivedMessagesServer = new ArrayList<>();
 
     private final List<String> messagesToSendClient = new ArrayList<>();
     private final List<String> receivedMessagesClient = new ArrayList<>();
-    private final List<String> waitingClients = new ArrayList<>();
 
-    String serverSubscriberHost;
-    String serverPublisherPort;
-    String clientSubscriberPort;
-    String clientPublisherPort;
+
+
+    private String serverSubscriberHost;
+    private String serverPublisherPort;
+    private String clientSubscriberPort;
+    private String clientPublisherPort;
     int id;
+
+    private String type;
 
     Logger logger = LoggerFactory.getLogger(this.getClass());
 
@@ -62,22 +66,28 @@ public class Server {
 
         new Thread(new ServerToServerCommunication(messagesToSendClient, receivedMessagesClient,
                 this.serverSubscriberHost, this.serverPublisherPort, this.id,
-                this.hasToken, this.initialized, messagesToSendServer, receivedMessagesServer)).start();
+                this.hasToken, this.initialized, messagesToSendServer, receivedMessagesServer,
+                this.type, this.tokenInit)).start();
     }
 
     public Server(String serverSubscriberHost, String serverPublisherPort, String clientSubscriberPort,
-                  String clientPublisherPort, int id) {
+                  String clientPublisherPort, int id, String type, boolean init) {
         this.serverPublisherPort = serverPublisherPort;
         this.serverSubscriberHost = serverSubscriberHost;
         this.clientPublisherPort = clientPublisherPort;
         this.clientSubscriberPort = clientSubscriberPort;
         this.id = id;
+        this.type = type;
+        this.tokenInit.setValue(init);
 
         new Thread(new ServerToServerCommunication(this.messagesToSendClient, this.receivedMessagesClient,
                 this.serverSubscriberHost, this.serverPublisherPort, this.id,
-                this.hasToken, this.initialized, this.messagesToSendServer, this.receivedMessagesServer)).start();
-        new Thread(new ServerToClientCommunication(this.messagesToSendClient, this.messagesToSendServer, this.receivedMessagesClient,
-                this.receivedMessagesServer, this.id, this.clientSubscriberPort, this.clientPublisherPort)).start();
+                this.hasToken, this.initialized, this.messagesToSendServer, this.receivedMessagesServer,
+                this.type, this.tokenInit)).start();
+        new Thread(new ServerToClientCommunication(this.messagesToSendClient, this.messagesToSendServer,
+                this.receivedMessagesClient,
+                this.receivedMessagesServer, this.id, this.clientSubscriberPort, this.clientPublisherPort,
+                this.type)).start();
     }
 
     private void addToList(String message, List<String> list) throws InterruptedException {

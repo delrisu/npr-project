@@ -45,5 +45,6 @@ public class Subscriber implements Runnable {
             }
             Thread.sleep(5);
         }
+        this.socket.close();
     }
 }
