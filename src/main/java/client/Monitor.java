@@ -44,12 +44,13 @@ public class Monitor {
         }
     }
 
-    public void _wait() {
+    public Object _wait() {
         try {
-            addToList(Constants.WAIT, this.toSend);
+            addToList(Constants.WAIT + "|" + new Gson().toJson(object), this.toSend);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
+
         synchronized (waitMonitor){
             try {
                 waitMonitor.wait();
@@ -57,6 +58,7 @@ public class Monitor {
                 e.printStackTrace();
             }
         }
+        return this._lock();
     }
 
     public Object _lock() {
@@ -75,20 +77,18 @@ public class Monitor {
         return this.object;
     }
 
-    public Object _unlock() {
+    public void _unlock() {
         try {
             addToList(Constants.UNLOCK + "|" + new Gson().toJson(object), this.toSend);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-        return this.object;
     }
 
     private void addToList(String message, List<String> list) throws InterruptedException {
         synchronized (list) {
             Thread.sleep(100);
             list.add(message);
-            logger.info("CLIENT Moved message: " + message);
             list.notify();
         }
     }

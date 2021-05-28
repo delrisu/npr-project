@@ -74,7 +74,7 @@ public class ServerToServerCommunication implements Runnable {
                 receivedMessagesServer.notify();
             }
             temp.forEach(message -> {
-                logger.info(this.id + " " + this.type + " " + message);
+                logger.info(this.id +" received "+message);
                 String[] splitMessage = message.split("\\|");
                 try {
                     switch (splitMessage[0]) {
@@ -120,7 +120,7 @@ public class ServerToServerCommunication implements Runnable {
                             this.hasToken.setTrue();
                             this.hasToken.notify();
                         }
-                        addToList(Constants.TOKEN + "|" + this.type + "|"+ splitMessage[2], this.receivedMessagesClient);
+                        addToList(Constants.TOKEN + "|" + this.type + "|" + splitMessage[2], this.receivedMessagesClient);
                         break;
                     case Constants.UNLOCK:
                         synchronized (this.hasToken) {
@@ -130,10 +130,12 @@ public class ServerToServerCommunication implements Runnable {
                         addToList(Constants.TOKEN + "|" + this.type + "|" + splitMessage[2], this.messagesToSendServer);
                         break;
                     case Constants.NOTIFY:
-                        addToList(Constants.S_NOTIFY, this.receivedMessagesClient);
+                        if (!splitMessage[2].equals(String.valueOf(this.id))) {
+                            addToList(Constants.S_NOTIFY + "|" + this.type + "|" + splitMessage[2], this.receivedMessagesClient);
+                        }
                         break;
                     case Constants.NOTIFY_ALL:
-                        if(!splitMessage[2].equals(String.valueOf(this.id))) {
+                        if (!splitMessage[2].equals(String.valueOf(this.id))) {
                             addToList(Constants.S_NOTIFY_ALL, this.receivedMessagesClient);
                             addToList(message, this.messagesToSendServer);
                         }
@@ -151,7 +153,6 @@ public class ServerToServerCommunication implements Runnable {
         synchronized (list) {
             Thread.sleep(100);
             list.add(message);
-            logger.info(id + " Moved message: " + message);
             list.notify();
         }
     }

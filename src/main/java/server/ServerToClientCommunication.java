@@ -27,7 +27,7 @@ public class ServerToClientCommunication implements Runnable {
 
     Logger logger = LoggerFactory.getLogger(this.getClass());
 
-    private boolean locked;
+    private boolean tryingToLock;
     private boolean waiting;
 
     private List<String> temp;
@@ -67,46 +67,49 @@ public class ServerToClientCommunication implements Runnable {
                 this.receivedMessagesClient.notify();
             }
             this.temp.forEach(message -> {
-                logger.info(message);
+                logger.info(this.id +" received "+message);
                 String[] splitMessage = message.split("\\|");
                 try {
                     switch (splitMessage[0]) {
                         case Constants.NOTIFY: //NOTIFY from client to server
-                            addToList(Constants.NOTIFY, this.messagesToSendServer);
+                            addToList(Constants.NOTIFY + "|" + this.type + "|" + this.id,
+                                    this.messagesToSendServer);
                             break;
+                        case Constants.NOTIFY_ALL:
+                            addToList(Constants.NOTIFY_ALL+"|"+this.type+"|"+this.id,
+                                    this.messagesToSendServer);
+                            break;
+                        case Constants.LOCK:
+                            this.tryingToLock = true;
+                            break;
+                        case Constants.WAIT:
+                            this.waiting = true;
+                        case Constants.UNLOCK:
+                            this.tryingToLock = false;
+                            addToList(Constants.UNLOCK + "|" + this.type + "|" + splitMessage[1],
+                                    this.receivedMessagesServer);
+                            break;
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
                         case Constants.S_NOTIFY: //NOTIFY from server to client
                             if (waiting) {
                                 waiting = false;
-                                locked = true;
                                 addToList(Constants.NOTIFY, this.messagesToSendClient);
                             } else {
-                                addToList(Constants.NOTIFY, this.messagesToSendServer);
+                                addToList(Constants.NOTIFY+ "|" + this.type + "|" + splitMessage[2], this.messagesToSendServer);
                             }
-                            break;
-                        case Constants.NOTIFY_ALL:
-                            addToList(Constants.NOTIFY_ALL+"|"+this.type+"|"+this.id, this.messagesToSendServer);
                             break;
                         case Constants.S_NOTIFY_ALL:
                             if (waiting) {
                                 waiting = false;
-                                locked = true;
+                                addToList(Constants.NOTIFY, this.messagesToSendClient);
                             }
                             break;
-                        case Constants.LOCK:
-                            this.locked = true;
-                            break;
-                        case Constants.UNLOCK:
-                            this.locked = false;
-                            addToList(Constants.UNLOCK + "|" + this.type + "|" + splitMessage[1], this.receivedMessagesServer);
-                            break;
-                        case Constants.WAIT:
-                            this.waiting = true;
-                            break;
                         case Constants.TOKEN:
-                            if (locked) {
+                            if (tryingToLock) {
                                 addToList(Constants.UNLOCK + "|" + splitMessage[2], messagesToSendClient);
                             } else {
-                                addToList(Constants.UNLOCK + "|" + this.type + "|" + splitMessage[2], receivedMessagesServer);
+                                addToList(Constants.UNLOCK + "|" + this.type + "|" + splitMessage[2],
+                                        receivedMessagesServer);
                             }
                             break;
                         default:
@@ -125,7 +128,6 @@ public class ServerToClientCommunication implements Runnable {
         synchronized (list) {
             Thread.sleep(100);
             list.add(message);
-            logger.info(id + " Moved message: " + message);
             list.notify();
         }
     }

@@ -40,7 +40,7 @@ public class Subscriber implements Runnable {
             String message = socket.recvStr();
             synchronized (receivedMessages) {
                 receivedMessages.add(message);
-                logger.info("Received: " + receivedMessages.get(0));
+//                logger.info("Received: " + receivedMessages.get(0));
                 receivedMessages.notify();
             }
             Thread.sleep(5);

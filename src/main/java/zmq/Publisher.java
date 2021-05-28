@@ -39,7 +39,7 @@ public class Publisher implements Runnable {
                 }
                 messagesToSend.forEach(message -> {
                     socket.send(message);
-                    logger.info("Sent: " + message);
+//                    logger.info("Sent: " + message);
                 });
                 messagesToSend.clear();
                 messagesToSend.notify();

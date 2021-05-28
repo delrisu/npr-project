@@ -48,33 +48,38 @@ public class ClientCommunication implements Runnable {
     }
 
     private void handleReceivedMessages() throws InterruptedException {
-        synchronized (received) {
-            while (received.size() == 0) {
-                received.wait();
+        while (!Thread.currentThread().isInterrupted()) {
+            synchronized (received) {
+                while (received.size() == 0) {
+                    received.wait();
+                }
+                temp = new ArrayList<>(received);
+                received.clear();
+                received.notify();
             }
-            temp = new ArrayList<>(received);
-            received.clear();
-            received.notify();
+
+            temp.forEach(message -> {
+                String[] splitMessage = message.split("\\|");
+
+                switch (splitMessage[0]) {
+                    case Constants.NOTIFY:
+//                        System.out.println("BABY I'M CLIENT AND I'VE BEEN NOTIFIED");
+                        synchronized (waitMonitor) {
+//                            System.out.println("NOTIFY");
+                            waitMonitor.notify();
+                        }
+//                        System.out.println("NOTIFIED");
+                        break;
+                    case Constants.UNLOCK:
+                        if (!splitMessage[1].equals("X")) {
+                            monitor.setObject(new Gson().fromJson(splitMessage[1], monitor.getObject().getClass()));
+                        }
+                        synchronized (lockMonitor) {
+                            lockMonitor.notify();
+                        }
+                        break;
+                }
+            });
         }
-
-        temp.forEach(message -> {
-            String[] splitMessage = message.split("\\|");
-
-            switch (splitMessage[0]){
-                case Constants.NOTIFY:
-                    synchronized (waitMonitor){
-                        waitMonitor.notify();
-                    }
-                    break;
-                case Constants.UNLOCK:
-                    if(!splitMessage[1].equals("X")) {
-                        monitor.setObject(new Gson().fromJson(splitMessage[1], monitor.getObject().getClass()));
-                    }
-                    synchronized (lockMonitor){
-                        lockMonitor.notify();
-                    }
-                    break;
-            }
-        });
     }
 }
