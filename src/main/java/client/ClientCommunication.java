@@ -15,12 +15,8 @@ public class ClientCommunication implements Runnable {
     private final List<String> received;
     private final List<String> toSend;
 
-    private final ZContext context = new ZContext();
-
-    private Publisher publisher;
-    private Subscriber subscriber;
-
-    private List<String> temp;
+    private final Publisher publisher;
+    private final Subscriber subscriber;
 
     private final Object waitMonitor;
     private final Object lockMonitor;
@@ -33,6 +29,7 @@ public class ClientCommunication implements Runnable {
         this.waitMonitor = waitMonitor;
         this.lockMonitor = lockMonitor;
         this.monitor = monitor;
+        ZContext context = new ZContext();
         subscriber = new Subscriber(subscriberHost, context, received, true);
         publisher = new Publisher(publisherHost, context, toSend, false);
 
@@ -49,6 +46,7 @@ public class ClientCommunication implements Runnable {
 
     private void handleReceivedMessages() throws InterruptedException {
         while (!Thread.currentThread().isInterrupted()) {
+            List<String> temp;
             synchronized (received) {
                 while (received.size() == 0) {
                     received.wait();

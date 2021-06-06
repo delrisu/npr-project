@@ -23,16 +23,12 @@ public class ServerToClientCommunication implements Runnable {
 
     private final int id;
 
-    private final ZContext context = new ZContext();
-
     Logger logger = LoggerFactory.getLogger(this.getClass());
 
     private boolean tryingToLock;
     private boolean waiting;
 
-    private List<String> temp;
-
-    private String type;
+    private final String type;
 
     public ServerToClientCommunication(List<String> messagesToSendClient, List<String> messagesToSendServer, List<String> receivedMessagesClient,
                                        List<String> receivedMessagesServer, int id, String clientSubscriberPort, String clientPublisherPort, String type) {
@@ -42,6 +38,7 @@ public class ServerToClientCommunication implements Runnable {
         this.receivedMessagesServer = receivedMessagesServer;
         this.id = id;
         this.type = type;
+        ZContext context = new ZContext();
         publisher = new Publisher(clientPublisherPort, context, messagesToSendClient, true);
         subscriber = new Subscriber(clientSubscriberPort, context, receivedMessagesClient, false);
 
@@ -58,6 +55,7 @@ public class ServerToClientCommunication implements Runnable {
 
     private void handleMessages() throws InterruptedException {
         while (!Thread.currentThread().isInterrupted()) {
+            List<String> temp;
             synchronized (this.receivedMessagesClient) {
                 while (this.receivedMessagesClient.size() == 0) {
                     this.receivedMessagesClient.wait();
@@ -66,7 +64,7 @@ public class ServerToClientCommunication implements Runnable {
                 this.receivedMessagesClient.clear();
                 this.receivedMessagesClient.notify();
             }
-            this.temp.forEach(message -> {
+            temp.forEach(message -> {
                 logger.info(this.id +" received "+message);
                 String[] splitMessage = message.split("\\|");
                 try {

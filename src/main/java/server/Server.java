@@ -37,39 +37,6 @@ public class Server {
 
     Logger logger = LoggerFactory.getLogger(this.getClass());
 
-    public Server() throws IOException, InterruptedException {
-        InputStream inputStream = getClass().getClassLoader().getResourceAsStream("Hosts");
-        assert inputStream != null;
-        List<String> lines = new ArrayList<>();
-        List<String[]> hostsSplit = new ArrayList<>();
-        BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
-        while (reader.ready()) {
-            lines.add(reader.readLine());
-        }
-        logger.info("Hosts size: " + lines.size());
-        Collections.sort(lines);
-        lines.forEach(host -> hostsSplit.add(host.split("\\|")));
-
-        for (int i = 0; i < hostsSplit.size(); i++) {
-            if (hostsSplit.get(i)[1].equals("1")) {
-                this.serverPublisherPort = hostsSplit.get(i)[0].split(":")[1];
-                id = i;
-                if (i == 0) {
-                    this.serverSubscriberHost = hostsSplit.get(hostsSplit.size() - 1)[0];
-                    addToList(Constants.TOKEN, this.receivedMessagesServer);
-                } else {
-                    this.serverSubscriberHost = hostsSplit.get(i - 1)[0];
-                }
-                //this.clientPusherPort = hostsSplit.get(i)[2];
-            }
-        }
-
-        new Thread(new ServerToServerCommunication(messagesToSendClient, receivedMessagesClient,
-                this.serverSubscriberHost, this.serverPublisherPort, this.id,
-                this.hasToken, this.initialized, messagesToSendServer, receivedMessagesServer,
-                this.type, this.tokenInit)).start();
-    }
-
     public Server(String serverSubscriberHost, String serverPublisherPort, String clientSubscriberPort,
                   String clientPublisherPort, int id, String type, boolean init) {
         this.serverPublisherPort = serverPublisherPort;
@@ -80,7 +47,7 @@ public class Server {
         this.type = type;
         this.tokenInit.setValue(init);
 
-        new Thread(new ServerToServerCommunication(this.messagesToSendClient, this.receivedMessagesClient,
+        new Thread(new ServerToServerCommunication(this.receivedMessagesClient,
                 this.serverSubscriberHost, this.serverPublisherPort, this.id,
                 this.hasToken, this.initialized, this.messagesToSendServer, this.receivedMessagesServer,
                 this.type, this.tokenInit)).start();

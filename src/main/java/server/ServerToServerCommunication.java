@@ -14,12 +14,9 @@ import java.util.List;
 
 public class ServerToServerCommunication implements Runnable {
 
-    private final List<String> messagesToSendClient;
     private final List<String> messagesToSendServer;
     private final List<String> receivedMessagesClient;
     private final List<String> receivedMessagesServer;
-
-    private final ZContext context = new ZContext();
 
     private final Publisher serverPublisher;
     private final Subscriber serverSubscriber;
@@ -29,16 +26,15 @@ public class ServerToServerCommunication implements Runnable {
     private final MutableBoolean tokenInit;
     private final int id;
     Logger logger = LoggerFactory.getLogger(this.getClass());
-    private List<String> temp;
-    private String type;
+    private final String type;
 
-    public ServerToServerCommunication(List<String> messagesToSendClient, List<String> receivedMessagesClient, String sub_host, String port, int id,
+    public ServerToServerCommunication(List<String> receivedMessagesClient, String sub_host, String port, int id,
                                        MutableBoolean hasToken, MutableBoolean initialized,
                                        List<String> messagesToSendToServers, List<String> receivedMessagesServer, String type, MutableBoolean tokenInit) {
-        this.messagesToSendClient = messagesToSendClient;
         this.receivedMessagesClient = receivedMessagesClient;
         this.messagesToSendServer = messagesToSendToServers;
         this.receivedMessagesServer = receivedMessagesServer;
+        ZContext context = new ZContext();
         this.serverSubscriber = new Subscriber(sub_host, context, receivedMessagesServer, true);
         this.serverPublisher = new Publisher(port, context, messagesToSendToServers, true);
         this.id = id;
@@ -65,6 +61,7 @@ public class ServerToServerCommunication implements Runnable {
 
     private void handleReceivedMessages() throws InterruptedException {
         while (!Thread.currentThread().isInterrupted()) {
+            List<String> temp;
             synchronized (receivedMessagesServer) {
                 while (receivedMessagesServer.size() == 0) {
                     receivedMessagesServer.wait();
@@ -97,7 +94,9 @@ public class ServerToServerCommunication implements Runnable {
                             }
                             break;
                         default:
-                            handleMessage(message);
+                            if(this.initialized.getValue()) {
+                                handleMessage(message);
+                            }
                             break;
                     }
 
